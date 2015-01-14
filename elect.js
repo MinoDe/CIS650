@@ -40,9 +40,9 @@ screen.append(box);
 
 app.set('port', process.env.PORT || 3000);
 
-var my_group = ["192.168.1.100", "192.168.1.101", "192.168.1.102", "192.168.1.105"];	// replace with real IPs of group
+var my_group = ["192.168.0.101", "192.168.0.103", "192.168.1.104", "192.168.1.105"];	// replace with real IPs of group
 
-var my_index = 0;	// replace with index of my IP in my_group
+var my_index = 3;	// replace with index of my IP in my_group
 
 box.setContent('this node (' + my_group[my_index] + ') will attempt to send its token to other nodes on network. ');
 screen.render();
@@ -70,12 +70,25 @@ app.post('/do_post', function (req, res) {
 	//screen.render();
 });
 
-function countPrimes(post_data) {
-	var kwork = post_data.k;
-	var num = post_data.n;
-	var count = post_data.c;
+var my_count;
+app.post('/election', function (req, res) {
+	var post_data = req.body;
+	if(post_data.ip == my_group[my_index]) {
+		box.setContent("I'm the leader!!!");
+		box.style.bg = "red";
+		screen.render();
+	}		
+	else if(post_data.count > my_count || (post_data.count == my_count && my_group[my_index] > my_group[post_data.ip])) {
+		postToNext('/election', post_data);
+	}
+});
 
-	box.setContent("Running computations for " + post_data.k + " milliseconds");
+function countPrimes(data, callback) {
+	var kwork = data.k;
+	var num = data.n;
+	var count = data.c;
+
+	box.setContent("Running computations for " + data.k + " milliseconds");
 	box.style.bg = "green";
 	screen.render();
 
@@ -107,24 +120,19 @@ function countPrimes(post_data) {
          status = 1;
          num++;
 
-
       }
 
-		postToNext({c:count,n:num,k:kwork});
+		callback({c:count,n:num,k:kwork});
 
 	}, 0);
 }
 
-function postToNext(data) {
-	box.style.bg = "yellow";
-	box.setContent("Numbers looked at: " + data.n + ". Primes found: " + data.c);
-	screen.render();
-
+function postToNext(url, data) {
 	var post_data = querystring.stringify(data);
 	var post_options = {
 		host: my_group[(my_index + 1) % my_group.length],
 		port: '3000',
-		path: '/do_post',
+		path: url,
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
@@ -143,9 +151,12 @@ function postToNext(data) {
 	post_req.end();
 
 }
-if(my_index == 0) {
-	countPrimes({c:0,n:0,k:5000});
-}
+
+countPrimes({c:0,n:0,k:5000}, function(result) {
+	my_count = result.c;
+	postToNext('/election', {ip: my_index, count: my_count});
+});
+
 
 // Quit on Escape, q, or Control-C.
 screen.key(['escape', 'q', 'C-c'], function(ch, key) {
