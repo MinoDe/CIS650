@@ -40,9 +40,17 @@ screen.append(box);
 
 app.set('port', process.env.PORT || 3000);
 
-var my_group = ["192.168.0.101", "192.168.0.103", "192.168.1.104", "192.168.1.105"];	// replace with real IPs of group
+var my_group = ["192.168.0.101", "192.168.0.104", "192.168.0.105", "192.168.0.108"];	// replace with real IPs of group
 
 var my_index = 3;	// replace with index of my IP in my_group
+
+var my_count, my_delay = 0;
+
+if(process.argv.length > 2) {
+	my_delay = parseInt(process.argv[2]);
+	if(isNaN(my_delay))
+		my_delay = 0;
+}
 
 box.setContent('this node (' + my_group[my_index] + ') will attempt to send its token to other nodes on network. ');
 screen.render();
@@ -70,25 +78,48 @@ app.post('/do_post', function (req, res) {
 	//screen.render();
 });
 
-var my_count;
+app.post('/election-result', function(req, res) {
+	var post_data = req.body;
+	if(post_data.leader != my_group[my_index]) {
+		box.setContent("The leader is the node at IP " + post_data.leader);
+		box.style.bg = "blue";
+		screen.render();
+		postToNext('/election-result', post_data);
+	}
+});
+var color_arr = ["#B77CB4", "#D3D315", "#F29500", "#02D1D8"]
 app.post('/election', function (req, res) {
 	var post_data = req.body;
-	if(post_data.ip == my_group[my_index]) {
-		box.setContent("I'm the leader!!!");
-		box.style.bg = "red";
-		screen.render();
-	}		
-	else if(post_data.count > my_count || (post_data.count == my_count && my_group[my_index] > my_group[post_data.ip])) {
-		postToNext('/election', post_data);
+	box.setContent("Got message: " + JSON.stringify(post_data));
+	box.style.bg = color_arr[post_data.ip];
+	screen.render();
+
+	var from_index = parseInt(post_data.ip), from_count = parseInt(post_data.count);
+	if(from_index == my_index) {
+		setTimeout(function() {
+			box.setContent("I'm the leader!!!");
+			box.style.bg = "red";
+			screen.render();
+			postToNext('/election-result', {leader: my_group[my_index]});
+		}, 6000);
+	}
+	else if(from_count > my_count || (from_count == my_count && my_index > from_index)) {
+		setTimeout(function() {
+			postToNext('/election', {ip: post_data.ip, count: post_data.count});
+		}, 5000);
 	}
 });
 
 function countPrimes(data, callback) {
-	var kwork = data.k;
+	var kwork = parseInt(data.k);
 	var num = data.n;
 	var count = data.c;
 
-	box.setContent("Running computations for " + data.k + " milliseconds");
+	if(isNaN(kwork)) {
+		return false;
+	}
+
+	box.setContent("Running computations for " + Math.max(0, data.k - my_delay) + " milliseconds");
 	box.style.bg = "green";
 	screen.render();
 
@@ -102,7 +133,7 @@ function countPrimes(data, callback) {
          var curTime = (new Date()).getTime();
                  var deltaTime = curTime - prevTime;
 
-                 if(deltaTime > kwork)
+                 if(deltaTime > Math.max(0, data.k - my_delay))
                         break;
          var j = 2;
          for (  j = 2 ; j <= Math.sqrt(num) ; j++ )
@@ -153,8 +184,14 @@ function postToNext(url, data) {
 }
 
 countPrimes({c:0,n:0,k:5000}, function(result) {
-	my_count = result.c;
-	postToNext('/election', {ip: my_index, count: my_count});
+	box.setContent("Finished counting... got to " + result.c);
+	box.style.bg = "black";
+	screen.render();
+
+	setTimeout(function() {
+		my_count = result.c;
+		postToNext('/election', {ip: my_index, count: result.c});
+	}, 6000);
 });
 
 
