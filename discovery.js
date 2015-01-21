@@ -49,6 +49,7 @@ d.on("master", function (obj) {
 });
 
 
+var my_delay = 0;
 function countPrimes(data, callback) {
 	var kwork = parseInt(data.k);
 	var num = data.n;
@@ -96,6 +97,6 @@ function countPrimes(data, callback) {
 
 countPrimes({c:0,n:0,k:5000}, function(result) {
 	my_count = result.c;
-	d.advertise({ip: my_index, count: result.c});
+	d.advertise({count: result.c});
 });
 
