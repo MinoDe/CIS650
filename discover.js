@@ -219,8 +219,6 @@ function Discover (options, callback) {
 			}
 		}
 
-		console.log("Nodes found: " + node_count);
-
 		if (!self.me.isMaster /*&& mastersFound < settings.mastersRequired*/ && self.me.isMasterEligible && !higherWeightFound) {
 			//no masters found out of all our nodes, become one.
 			self.promote();

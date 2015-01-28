@@ -1,7 +1,15 @@
-
+var os = require('os');
+var http = require('http');
+var express = require('express');
+var connect = require("connect");
 var blessed = require('blessed');
-var ip = require('ip');
+var bodyParser = require('body-parser');
+var querystring = require('querystring');
+
 var Discover = require('node-discover');
+
+var app = express();
+app.use(bodyParser.urlencoded());
 
 var my_delay = 0;
 if(process.argv.length > 2) {
@@ -93,74 +101,68 @@ countPrimes({c:0,n:0,k:5000}, function(result) {
 	var d = Discover({weight: -1*my_count});
 	//d.advertise({ something : "something" });
 
-	var node_addresses = [], current_node_calculating = false;
+	console.log(d.me.weight);
+
+	var node_ids = [], last_address = false;
 	var current_count = {n: 0, c: 0};
+	var pass_token_timer = false;
 
-	d.broadcast.on("hello", function (obj) {
-		console.log(obj.advertisement);
-		if(obj.isMaster && obj.advertisement && obj.advertisement.node_address == ip.address() && obj.advertisement.n >= current_count.n) {
-			// Slave node getting message from master
-			countPrimes({c: obj.advertisement.c, n: obj.advertisement.n, k: 1000}, function(response) {
-				current_count.n = response.n;
-				current_count.c = response.c;
-				d.advertise(response);
-			});
-		}
-		else if(d.me.isMaster) {
-			if(current_node_calculating == false) {
-				setNodeCalculating(obj.address);
-			}
-			else if(current_node_calculating == obj.address && obj.advertisement && obj.advertisement.n >= current_count.n) {
-				current_count.n = obj.advertisement.n;
-				current_count.c = obj.advertisement.c;
-				if(node_addresses.length > 1) {
-					setNodeCalculating(node_addresses[(node_addresses.indexOf(obj.address) + 1) % node_addresses.length]);
-				}
-				else {
-					current_node_calculating = false;
-				}
-			}
-		}
-	});
+	function passToken() {
+		if(!d.me.isMaster)
+			return false;
 
-	function setNodeCalculating(node_address) {
-		d.advertise({c: current_count.c, n: current_count.n, node_address: node_address});
-		current_node_calculating = node_address;
+		var node_addresses = [];
+		d.eachNode(function(node) {
+			node_addresses.push(node.address);
+		});
+
+		if(node_addresses.length < 1) {
+			pass_token_timer = setTimeout(passToken, 1000);
+			return false;
+		}
+
+		if(last_address === false) {
+			var next_address = node_addresses[0];
+		}
+		else {
+			var last_index = node_addresses.indexOf(last_address);
+			var next_address = node_addresses[last_index != -1 ? ((last_index + 1) % node_addresses.length) : 0];
+		}
+		if(next_address == d.me.address) {
+			next_address = (node_addresses.indexOf(next_address) + 1) % node_addresses.length;
+		}
+		sendPost(next_address, '/send-for-processing', {c: current_count.c, n: current_count.n});
+		last_address = next_address;
 	}
 
 	d.on("promotion", function () {
 		box.style.bg = "green";
 		screen.render();
-
-		if(node_addresses.length)
-			setNodeCalculating(node_addresses[0]);
+		passToken();
 	});
 
 	d.on("demotion", function () {
 		box.style.bg = "magenta";
 		screen.render();
+		clearTimeout(pass_token_timer);
 	});
 
 	d.on("added", function (obj) {
 		console.log("A new node has been added: " + obj.address);
-		if(obj.address != ip.address())
-			node_addresses.push(obj.address);
-		box.setContent("Total nodes: " + node_addresses.length);
+		node_ids.push(obj.id);
+		box.setContent("Total nodes: " + node_ids.length);
 		screen.render();
 	});
 
 	d.on("removed", function (obj) {
-		if(d.me.isMaster && current_node_calculating == obj.address) {
-			current_node_calculating = false;
-		}
 		console.log("A node has been removed.");
-		for(var i=0;i<node_addresses.length;i++) {
-			if(obj.address == node_addresses[i]) {
-				node_addresses.splice(i, 1);
+		for(var i=0;i<node_ids.length;i++) {
+			if(obj.id == node_ids[i]) {
+				node_ids.splice(i, 1);
 				break;
 			}
 		}
-		box.setContent("Total nodes: " + node_addresses.length);
+		box.setContent("Total nodes: " + node_ids.length);
 		screen.render();
 	});
 
@@ -174,10 +176,54 @@ countPrimes({c:0,n:0,k:5000}, function(result) {
 		 */
 
 		console.log("A new master is in control: " + obj.address);
+	});
+
+	app.post('/send-for-processing', function (req, res) {
+		// Message obtained from master process, send a post once primes have been counted.
+		var post_data = req.body;
+		countPrimes(post_data.count_data, function(result) {
+			sendPost(post_data.master_ip, '/send-response', result);
+		});
 
 	});
 
+	app.post('/send-response', function (req, res) {
+		// Response received from slave process
+		var post_data = req.body;
+		current_count.c = post_data.c;
+		current_count.n = post_data.n;
+		passToken();
+
+	});
+
+	function sendPost(ip, url, data) {
+		var post_data = querystring.stringify(data);
+		var post_options = {
+			host: ip,
+			port: '3000',
+			path: url,
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'Content-Length': post_data.length
+			}
+		};
+		var post_req = http.request(post_options, function(res) {
+			res.setEncoding('utf8');
+			res.on('data', function (chunk) {
+				
+			});
+		});
+
+		// post the data
+		post_req.write(post_data);
+		post_req.end();
+	}
+
 });
 
+http.createServer(app).listen(app.get('port'), function(){
+	//console.log("Express server listening on port " + app.get('port'));
+});
 
 
