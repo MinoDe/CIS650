@@ -33,13 +33,23 @@ var box = blessed.box({
 		}
 	}
 });
-box.setContent("Counting primes with a delay of " + my_delay + "ms");
 screen.append(box);
 screen.key(['escape', 'q', 'C-c'], function(ch, key) {
 	return process.exit(0);
 });
 box.focus();
-screen.render();
+var blessed_lines = {node_count: "Other nodes: 0", master: "", status: "Calculating with delay of " + my_delay + "ms", count: ""};
+
+function setContent() {
+	var new_content = "";
+	for(line in blessed_lines) {
+		new_content += blessed_lines[line] + "\n";
+	}
+	box.setContent(new_content);
+	screen.render();
+}
+setContent();
+
 
 // Function for counting # of primes in k seconds
 function countPrimes(data, callback) {
@@ -61,7 +71,7 @@ function countPrimes(data, callback) {
          var curTime = (new Date()).getTime();
                  var deltaTime = curTime - prevTime;
 
-                 if(deltaTime > Math.max(0, data.k - my_delay))
+                 if(deltaTime > data.k)
                         break;
          var j = 2;
          for (  j = 2 ; j <= Math.sqrt(num) ; j++ )
@@ -87,7 +97,7 @@ function countPrimes(data, callback) {
 }
 
 
-countPrimes({c:0,n:0,k:5000}, function(result) {
+countPrimes({c:0,n:0,k:Math.max(0, 5000 - my_delay)}, function(result) {
 	var my_count = result.c;
 
 	var d = Discover({weight: -1*my_count});
@@ -96,14 +106,25 @@ countPrimes({c:0,n:0,k:5000}, function(result) {
 	var node_addresses = [], current_node_calculating = false;
 	var current_count = {n: 0, c: 0};
 
+	blessed_lines["status"] = "Waiting..";
+	setContent();
+
 	d.broadcast.on("hello", function (obj) {
-		console.log(obj.advertisement);
 		if(obj.isMaster && obj.advertisement && obj.advertisement.node_address == ip.address() && obj.advertisement.n >= current_count.n) {
+			blessed_lines["status"] = "Calculating..";
+			box.style.bg = "green";
+			
+			setContent();
 			// Slave node getting message from master
 			countPrimes({c: obj.advertisement.c, n: obj.advertisement.n, k: 1000}, function(response) {
 				current_count.n = response.n;
 				current_count.c = response.c;
 				d.advertise(response);
+
+				box.style.bg = "magenta";
+				blessed_lines["status"] = "Waiting..";
+				blessed_lines["count"] = "Primes: " + current_count.c + "/" + current_count.n;
+				setContent();
 			});
 		}
 		else if(d.me.isMaster) {
@@ -113,6 +134,9 @@ countPrimes({c:0,n:0,k:5000}, function(result) {
 			else if(current_node_calculating == obj.address && obj.advertisement && obj.advertisement.n >= current_count.n) {
 				current_count.n = obj.advertisement.n;
 				current_count.c = obj.advertisement.c;
+				blessed_lines["count"] = "Primes: " + current_count.c + "/" + current_count.n;
+				setContent();
+
 				if(node_addresses.length > 1) {
 					setNodeCalculating(node_addresses[(node_addresses.indexOf(obj.address) + 1) % node_addresses.length]);
 				}
@@ -129,11 +153,14 @@ countPrimes({c:0,n:0,k:5000}, function(result) {
 	}
 
 	d.on("promotion", function () {
-		box.style.bg = "green";
+		box.style.bg = "red";
 		screen.render();
 
 		if(node_addresses.length)
 			setNodeCalculating(node_addresses[0]);
+
+		blessed_lines["master"] = "I'm the master!";
+		setContent();
 	});
 
 	d.on("demotion", function () {
@@ -142,26 +169,26 @@ countPrimes({c:0,n:0,k:5000}, function(result) {
 	});
 
 	d.on("added", function (obj) {
-		console.log("A new node has been added: " + obj.address);
+		//console.log("A new node has been added: " + obj.address);
 		if(obj.address != ip.address())
 			node_addresses.push(obj.address);
-		box.setContent("Total nodes: " + node_addresses.length);
-		screen.render();
+		blessed_lines["node_count"] = "Other nodes: " + node_addresses.length;
+		setContent();
 	});
 
 	d.on("removed", function (obj) {
 		if(d.me.isMaster && current_node_calculating == obj.address) {
 			current_node_calculating = false;
 		}
-		console.log("A node has been removed.");
+		//console.log("A node has been removed.");
 		for(var i=0;i<node_addresses.length;i++) {
 			if(obj.address == node_addresses[i]) {
 				node_addresses.splice(i, 1);
 				break;
 			}
 		}
-		box.setContent("Total nodes: " + node_addresses.length);
-		screen.render();
+		blessed_lines["node_count"] = "Other nodes: " + node_addresses.length;
+		setContent();
 	});
 
 	d.on("master", function (obj) {
@@ -173,11 +200,11 @@ countPrimes({c:0,n:0,k:5000}, function(result) {
 		 *  - Kill all connections to the old master
 		 */
 
-		console.log("A new master is in control: " + obj.address);
+		blessed_lines["master"] = "Master: " + obj.address;
+		setContent();
 
 	});
 
 });
-
 
 
