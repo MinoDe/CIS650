@@ -33,14 +33,13 @@ screen.key(['escape', 'q', 'C-c'], function(ch, key) {
 box.focus();
 screen.render();
 
+var d = Discover();
+var node_addresses = [], current_node_calculating = false;
+
 box.on('click', function() {
 	box.style.bg = "yellow";
 	screen.render();
 });
-
-var d = Discover();
-
-var node_addresses = [], current_node_calculating = false;
 
 d.broadcast.on("hello", function (obj) {
 
