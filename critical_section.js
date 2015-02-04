@@ -30,18 +30,36 @@ screen.append(box);
 screen.key(['escape', 'q', 'C-c'], function(ch, key) {
 	return process.exit(0);
 });
+box.setContent("Request resource");
 box.focus();
 screen.render();
 
 var d = Discover();
-var node_addresses = [], current_node_calculating = false;
+var node_addresses = [], timestamp = 0, pending_reply = false;
+var advertisement = {ip: ip.address(), ts: timestamp, request: false};
+
 
 box.on('click', function() {
 	box.style.bg = "yellow";
 	screen.render();
+	advertisement.request = true;
+	d.advertise(advertisement);
+	pending_reply = node_addresses;
 });
 
 d.broadcast.on("hello", function (obj) {
+	if(obj.advertisement) {
+		if(obj.advertisement.ts > timestamp  || (obj.advertisement.ts == timestamp && obj.advertisement.ip > ip.address())) {
+			timestamp = obj.advertisement.ts;
+			advertisement.reply = obj.advertisement.ip;
+			d.advertise(advertisement);
+		}
+		else if(advertisement.request == true) {
+			if(obj.advertisement.reply == ip.address()) {
+				
+			}
+		}
+	}
 
 });
 
