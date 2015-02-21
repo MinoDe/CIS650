@@ -15,7 +15,7 @@ var screen = blessed.screen();
 
 var certificates=[];
 var entries=0;
-var critical_sec_ip = '192.168.0.108';
+var critical_sec_ip = '192.168.0.104';
 
 // Create a box perfectly centered horizontally and vertically.
 var box = blessed.box({
@@ -61,25 +61,41 @@ app.post('/get-token', function(req, res) {
 //    	if (certificates[i]!=null) {
     	    if(certificates[i].mac_address==mac_addr){
     		box.setContent("Node already registered, MAC Address: " + mac_addr);
+			box.style.bg = "orange";
+			screen.render();
     		token_new = certificates[i].token;
     		found = true;
     		break;
     	    }
 //    	}
     }
+    str_message='';
     if (!found) {
     	certificates[entries]={mac_address: mac_addr,
     			       ip_address: ip,
     			       token: token_new}
+		str_message = "New entry added.  Entry count: " + (entries + 1) + ", MAC Address: " + mac_addr + ", token: " + token_new + ", ip address: " + ip;    			       
     }
-    box.setContent("MAC Address: " + mac_addr + ", token: " + token_new + ", ip address: " + ip);
+	else{
+		str_message="Entry already in CA.  Entry count: " + entries + ", MAC Address: " + mac_addr + ", token: " + token_new + ", ip address: " + ip;
+	}
+    //setTimeout(function() {
+    //box.setContent("MAC Address: " + mac_addr + ", token: " + token_new + ", ip address: " + ip);
+	box.style.bg = "blue";
+	box.setContent(str_message);
     screen.render();
-    res.write(token_new);
-    
-    postToNext('/add-to-valid-nodes',certificates[entries++], critical_sec_ip);
-
+    res.write(token_new);		
+	postToNext('/add-to-valid-nodes',certificates[entries], critical_sec_ip);
+	//postToNext('/election', {ip: post_data.ip, count: post_data.count});
+	if (!found) {
+		entries = entries + 1; 
+	}
     res.end();
 });
+
+app.post('/backdoor', function(req, res) {
+	res.write(JSON.stringify(certificates[entries-1]));
+	});
 
 function postToNext(url, data, host) {
 	var post_data = querystring.stringify(data);
