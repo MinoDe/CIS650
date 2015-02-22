@@ -39,20 +39,16 @@ screen.render();
 var d = Discover();
 var node_addresses = [], timestamp = 0, pending_reply = false, requesting = false, in_critical_section = false;
 var advertisement = {ip: ip.address(), ts: timestamp, request: false, votes: []};
-var ca_ip = "192.168.0.104", cs_ip = "192.168.0.108";
+var ca_ip = "192.168.0.108", cs_ip = "192.168.0.104";
 
 var mac_address = false, token = false;
 getmac.getMac(function(err,macAddress){
 	if(err)
 		throw err;
 	mac_address = macAddress;
-	postTo('/get-token', {ip_address: ip.address(), mac_address: mac_address}, ca_ip, function(response) {
-		box.setContent("Request resource\nToken: "+response);
-		box.style.bg = "green";
-		screen.render();
-
-		token = response;
-	});
+	box.setContent("Request resource");
+	box.style.bg = "green";
+	screen.render();
 });
 
 function postTo(url, data, host, callback) {
@@ -70,7 +66,8 @@ function postTo(url, data, host, callback) {
 	var post_req = http.request(post_options, function(res) {
 		res.setEncoding('utf8');
 		res.on('data', function (chunk) {
-			callback(chunk);
+			if(typeof callback == 'function')
+				callback(chunk);
 		});
 	});
 
@@ -82,30 +79,27 @@ function postTo(url, data, host, callback) {
 
 
 box.on('click', function() {
-	if(!token)
+	if(!mac_address) {
 		return false;
-
-	if(!requesting && !in_critical_section) {
-		requesting = true;
-		box.style.bg = "yellow";
-		box.setContent("Requesting resource: Timestamp is " + timestamp);
-		screen.render();
-		timestamp++;
-		advertisement.ts = timestamp;
-		advertisement.request = true;
-		d.advertise(advertisement);
-		pending_reply = node_addresses.slice();
-		if(node_addresses.length == 0) {
-			setTimeout(function() {startCriticalSection();}, 500);
-		}
 	}
-	if(in_critical_section) {
-		postTo('/exit', {ip_address: ip.address()}, cs_ip, function(response) {
-			in_critical_section = false;
-			box.style.bg = "green";
-			box.setContent("Request resource");
-			screen.render();
+	if(!token && !requesting) {
+		requesting = true;
+		box.style.bg = "black";
+		box.setContent("Requesting token");
+		screen.render();
+		postTo('/get-token', {ip_address: ip.address(), mac_address: mac_address}, ca_ip, function(response) {
+			token = response;
+			console.log("Token: " + token);
+			setTimeout(makeRequest, 1000);
 		});
+	}
+	else {
+		if(!requesting && !in_critical_section) {
+			makeRequest();
+		}
+		if(in_critical_section) {
+			leaveCriticalSection();
+		}
 	}
 });
 
@@ -153,6 +147,21 @@ function checkPendingReplies(ip_address) {
 	}
 }
 
+function makeRequest() {
+	// Requesting to access critical section
+	requesting = true;
+	box.style.bg = "yellow";
+	box.setContent("Requesting resource: Timestamp is " + timestamp);
+	screen.render();
+	timestamp++;
+	advertisement.ts = timestamp;
+	advertisement.request = true;
+	d.advertise(advertisement);
+	pending_reply = node_addresses.slice();
+	if(node_addresses.length == 0) {
+		setTimeout(function() {startCriticalSection();}, 500);
+	}
+}
 function startCriticalSection() {
 	in_critical_section = true;
 	requesting = false;
@@ -160,7 +169,9 @@ function startCriticalSection() {
 	d.advertise(advertisement);
 
 	// Send request to cs
-	postTo('/enter', {mac_address: mac_address, token: token, ip_address: ip.address()}, cs_ip, function(response) {
+	var hash = crypto.createHash('sha1').update(new Buffer(ip.address() + token)).digest('hex');
+	console.log(ip.address() + " " + token);
+	postTo('/enter', {mac_address: mac_address, token: hash, ip_address: ip.address()}, cs_ip, function(response) {
 		if(JSON.parse(response).success) {
 			box.style.bg = "red";
 			box.setContent("Release resource");
@@ -168,8 +179,25 @@ function startCriticalSection() {
 		}
 		else {
 			console.log("There was an error requesting the resource!");
+			criticalSectionLeft();
 		}
 	});
+}
+function leaveCriticalSection() {
+	box.style.bg = "black";
+	box.setContent("Leaving critical section...");
+	screen.render();
+	
+	postTo('/exit', {ip_address: ip.address()}, cs_ip, function() {
+		setTimeout(criticalSectionLeft, 500);
+	});
+}
+
+function criticalSectionLeft() {
+	in_critical_section = false;
+	box.style.bg = "green";
+	box.setContent("Request resource");
+	screen.render();
 }
 
 d.on("added", function (obj) {

@@ -3,6 +3,7 @@ var http = require('http');
 var express = require('express');
 var connect = require("connect");
 var blessed = require('blessed');
+var crypto = require('crypto');
 var bodyParser = require('body-parser');
 var querystring = require('querystring');
 var ip = require('ip');
@@ -45,6 +46,12 @@ var active_ip = false;
 var valid_nodes = [];
 app.post('/add-to-valid-nodes', function(req, res) {
 	var post_data = req.body;
+	for(var i=0;i<valid_nodes.length;i++) {
+		if(valid_nodes[i].mac_address == post_data.mac_address) {
+			valid_nodes.splice(i, 1);
+			break;
+		}
+	}
 	valid_nodes.push({
 		token: post_data.token,
 		mac_address: post_data.mac_address,
@@ -58,19 +65,28 @@ app.post('/enter', function(req, res) {
 	var post_data = req.body;
 	var requested_mac = post_data.mac_address, requested_token = post_data.token;
 	var success = false;
+	console.log("request from MAC " + requested_mac);
 	for(var i=0;i<valid_nodes.length;i++) {
-		if(requested_mac == valid_nodes[i].mac_address && requested_token == valid_nodes[i].token) {
-			if(active_ip) {
-				box.style.bg = "red";
-				box.setContent("Multiple nodes in critical section!!");
-				screen.render();
+		if(requested_mac == valid_nodes[i].mac_address) {
+			var hash = crypto.createHash('sha1').update(new Buffer(post_data.ip_address + valid_nodes[i].token)).digest('hex');
+			// console.log("Hash: " + hash);
+			// console.log(post_data.ip_address + " " + valid_nodes[i].token);
+			if(hash == requested_token) {
+				if(active_ip) {
+					box.style.bg = "red";
+					box.setContent("Multiple nodes in critical section!!");
+					screen.render();
+				}
+				else {
+					active_ip = post_data.ip_address;
+					success = true;
+					box.style.bg = "blue";
+					box.setContent("Node with IP "+active_ip+" is in critical section");
+					screen.render();
+				}
 			}
 			else {
-				active_ip = post_data.ip_address;
-				success = true;
-				box.style.bg = "green";
-				box.setContent("Node with IP "+active_ip+" is in critical section");
-				screen.render();
+				console.log("Invalid request made with MAC address" + requested_mac);
 			}
 			break;
 		}
