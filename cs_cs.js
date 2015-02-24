@@ -9,10 +9,28 @@ var querystring = require('querystring');
 var ip = require('ip');
 var app = express();
 
+var crypto = require('crypto'),
+    algorithm = 'aes-256-ctr',
+    password = 'd6F3Efeq';
+
 app.use(bodyParser.urlencoded());
 
 // Create a screen object.
 var screen = blessed.screen();
+
+function encrypt(text){
+  var cipher = crypto.createCipher(algorithm,password)
+  var crypted = cipher.update(text,'utf8','hex')
+  crypted += cipher.final('hex');
+  return crypted;
+}
+ 
+function decrypt(text){
+  var decipher = crypto.createDecipher(algorithm,password)
+  var dec = decipher.update(text,'hex','utf8')
+  dec += decipher.final('utf8');
+  return dec;
+}
 
 // Create a box perfectly centered horizontally and vertically.
 var box = blessed.box({
@@ -46,17 +64,20 @@ var active_ip = false;
 var valid_nodes = [];
 app.post('/add-to-valid-nodes', function(req, res) {
 	var post_data = req.body;
+	
 	for(var i=0;i<valid_nodes.length;i++) {
-		if(valid_nodes[i].mac_address == post_data.mac_address) {
+		mac_decr = decrypt(valid_nodes[i].mac_address); 
+		if(mac_decr == post_data.mac_address) {
 			valid_nodes.splice(i, 1);
 			break;
 		}
 	}
 	valid_nodes.push({
-		token: post_data.token,
-		mac_address: post_data.mac_address,
-		ip_address: post_data.ip_address
+		token: decrypt(post_data.token),
+		mac_address: decrypt(post_data.mac_address),
+		ip_address: decrypt(post_data.ip_address)
 	});
+	
 	console.log("One entry added");
 	res.end();
 });
