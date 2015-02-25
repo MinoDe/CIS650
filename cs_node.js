@@ -39,7 +39,7 @@ screen.render();
 var d = Discover();
 var node_addresses = [], timestamp = 0, pending_reply = false, requesting = false, in_critical_section = false;
 var advertisement = {ip: ip.address(), ts: timestamp, request: false, votes: []};
-var ca_ip = "192.168.0.108", cs_ip = "192.168.0.104";
+var ca_ip = "192.168.0.105", cs_ip = "192.168.0.108";
 
 var mac_address = false, token = false;
 getmac.getMac(function(err,macAddress){
