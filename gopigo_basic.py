@@ -50,8 +50,9 @@ while True:
 			dist=int(cmd[2]+cmd[3])/divider
 			speed=int(cmd[5])
 			print str(dist)
-			print str(speed)
-			set_speed(speed)
+			print str(speed*25.5)
+			set_speed(int(speed*25.5))
+			dist = int(dist*2.1)
 			enc_tgt(1,1,dist)
 			fwd()
 			print read_status()
@@ -69,11 +70,15 @@ while True:
 #			c.update()
 #			start=360-c.headingDegrees	# compass counts go from 360 -> 0 when turning left, so invert the count
 			#adding a temp start value
-			start = 0
+			#start = 0
 			#target= (start+angle)%360	# If target >360 degrees, wrap it to 0
-			target = angle
-			current = 0
+			#target = angle
+			#current = 0
+			angle = int(angle*0.07)
+			print angle
+			enc_tgt(1,1,angle)
 			left_rot()
+			'''
 			while True:
 				current = current +0.05
 #				current=360-c.headingDegrees
@@ -83,21 +88,21 @@ while True:
 					if current>target:
 						#right_rot()
 						left_rot()
-						time.sleep(.15)
+						#time.sleep(.15)
 						stop()
 						break;
 				else:
 					if current>target:# and current <start-5:	#If target has been wrapped then the check condition changes and keep some tolerence 
 						#right_rot()
 						left_rot()
-						time.sleep(.15)
+						#time.sleep(.15)
 						stop()
 						break;
 #				c.update()
 				#time.sleep(.1)
 			if en_turtle:
 				turtle.left(angle)			
-				
+			'''	
 		elif cmd [0]=='r': 				#Rotate right if command if r
 			angle=int(cmd[2:]) 
 			if angle >360 or angle <0:
@@ -105,10 +110,17 @@ while True:
 				continue
 				
 #			c.update()
+			angle = int(angle*0.08)
+			#print angle
+			'''
 			start=0#c.headingDegrees
 			target= angle#(start+angle)%360
 			current = 0
+			'''
+			enc_tgt(1,1,angle)
 			right_rot()
+			
+			'''
 			while True:
 				current=current+0.045
 				if debug:
@@ -125,7 +137,7 @@ while True:
 				#time.sleep(.1)
 			if en_turtle:
 				turtle.right(angle)
-				
+			'''	
 		elif cmd[0]=='x':	#Exit on x
 			print "Exiting"
 			if en_turtle:
@@ -155,7 +167,7 @@ while True:
 	except ValueError:
 		print "Wrong command"
 	
-	time.sleep(.1)
+	#time.sleep(.1)
 	#print heading
 	
-	time.sleep(.1)
+	#time.sleep(.1)
