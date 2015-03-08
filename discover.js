@@ -30,11 +30,25 @@
  *
  */
 
+var os = require('os');
+var http = require('http');
+var express = require('express');
+var connect = require("connect");
+var blessed = require('blessed');
+var bodyParser = require('body-parser');
+var app = express();
+
+var bodyParser = require('body-parser');
+var querystring = require('querystring');
+
+
 var Network = require('./network.js'),
 	EventEmitter = require('events').EventEmitter,
 	util = require('util');
-
-var reservedEvents = ['promotion', 'demotion', 'added', 'removed', 'master', 'hello'];
+http.createServer(app).listen(app.get('port'), function(){
+	console.log("Express server listening on port " + app.get('port'));
+});
+var reservedEvents = ['promotion', 'demotion', 'added', 'removed', 'master', 'hello', 'sendTo'];
 
 module.exports = Discover;
 
@@ -45,7 +59,7 @@ module.exports = Discover;
  * 
  * Example:
  * 
- * ```js
+ * js
  * var Discover = require('discover');
  * Discover.weight = function () {
  * 	return Math.random();
@@ -58,7 +72,17 @@ Discover.weight = function () {
 	//default to negative, decimal now value
 	return -(Date.now() / Math.pow(10,String(Date.now()).length));
 };
-
+//Listening to data on /data
+app.post('/data', function(req, res) {
+	var post_data = req.body;
+//	if(post_data.leader != my_group[my_index]) {
+		box.setContent("data received " + post_data.data);
+		box.style.bg = "blue";
+		screen.render();
+		console.log("Received data");
+		//postToNext('/election-result', post_data);
+//	}
+});
 function Discover (options, callback) {
 	if (!(this instanceof Discover)) {
 		return new Discover(options, callback);
@@ -281,6 +305,27 @@ function Discover (options, callback) {
 };
 
 util.inherits(Discover, EventEmitter);
+//Adding a method to send a post message
+Discover.prototype.sendTo = function(ip, data){
+	var post_data = querystring.stringify(data);
+	var post_options = {
+		host: ip,
+		port: '3000',
+		path: '/data',
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded',
+			'Content-Length': post_data.length
+		}
+	};
+	var post_req = http.request(post_options, function(res) {
+		res.setEncoding('utf8');
+		res.on('data', function (chunk) {
+
+		});
+	});
+};
+
 
 Discover.prototype.promote = function () {
 	var self = this;

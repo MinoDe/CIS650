@@ -1,15 +1,38 @@
 
+var os = require('os');
+var http = require('http');
+var express = require('express');
+var connect = require("connect");
 var blessed = require('blessed');
+var bodyParser = require('body-parser');
+var app = express();
+var bodyParser = require('body-parser');
+var querystring = require('querystring');
 var ip = require('ip');
 var Discover = require('node-discover');
-
+http.createServer(app).listen(app.get('port'), function(){
+	console.log("Express server listening on port " + app.get('port'));
+});
+app.use(bodyParser.urlencoded());
 var my_delay = 0;
+
 if(process.argv.length > 2) {
 	my_delay = parseInt(process.argv[2]);
 	if(isNaN(my_delay))
 		my_delay = 0;
 }
 
+//Listening to data on /data
+app.post('/data', function(req, res) {
+	var post_data = req.body;
+//	if(post_data.leader != my_group[my_index]) {
+		box.setContent("data received " + post_data.data);
+		box.style.bg = "blue";
+		screen.render();
+		setTimeout(function(){console.log("Received data");}, 5000);
+		//postToNext('/election-result', post_data);
+//	}
+});
 // Create blessed box and add to PI screen
 var screen = blessed.screen();
 var box = blessed.box({
@@ -49,6 +72,7 @@ function setContent() {
 	screen.render();
 }
 setContent();
+
 
 
 // Function for counting # of primes in k seconds
@@ -102,6 +126,8 @@ countPrimes({c:0,n:0,k:Math.max(0, 5000 - my_delay)}, function(result) {
 
 	var d = Discover({weight: -1*my_count});
 	//d.advertise({ something : "something" });
+	d.sendTo('192.168.1.105',{data: "this is amazing when it displays"});
+	d.sendTo('192.168.1.108',{data: "this is amazing when it displays"});
 
 	var node_addresses = [], current_node_calculating = false;
 	var current_count = {n: 0, c: 0};
@@ -148,9 +174,18 @@ countPrimes({c:0,n:0,k:Math.max(0, 5000 - my_delay)}, function(result) {
 	});
 
 	function setNodeCalculating(node_address) {
-		d.advertise({c: current_count.c, n: current_count.n, node_address: node_address});
+		d.sendTo('192.168.1.105',{data: "this is amazing when it displays", c: current_count.c, n: current_count.n, node_address: node_address});
+		d.sendTo('192.168.1.108',{data: "this is amazing when it displays", c: current_count.c, n: current_count.n, node_address: node_address});
+		//d.advertise({c: current_count.c, n: current_count.n, node_address: node_address});
 		current_node_calculating = node_address;
 	}
+	box.on('click', function(data) {
+  	d.sendTo('192.168.1.105',{data: "this is amazing when it displays", c: current_count.c, n: current_count.n, node_address: node_address});
+		d.sendTo('192.168.1.108',{data: "this is amazing when it displays", c: current_count.c, n: current_count.n, node_address: node_address});
+		
+  	box.setContent('{center}Data Has been sent {red-fg}content{/red-fg}.{/center}');
+  	screen.render();
+	});
 
 	d.on("promotion", function () {
 		box.style.bg = "red";
@@ -161,8 +196,8 @@ countPrimes({c:0,n:0,k:Math.max(0, 5000 - my_delay)}, function(result) {
 
 		blessed_lines["master"] = "I'm the master!";
 		setContent();
+		d.sendTo('192.168.1.108',{data: "this is amazing when it displays"});
 	});
-
 	d.on("demotion", function () {
 		box.style.bg = "magenta";
 		screen.render();
@@ -174,6 +209,8 @@ countPrimes({c:0,n:0,k:Math.max(0, 5000 - my_delay)}, function(result) {
 			node_addresses.push(obj.address);
 		blessed_lines["node_count"] = "Other nodes: " + node_addresses.length;
 		setContent();
+		d.sendTo('192.168.1.105',{data: "this is amazing when it displays"});
+		d.sendTo('192.168.1.108',{data: "this is amazing when it displays"});
 	});
 
 	d.on("removed", function (obj) {
@@ -202,7 +239,7 @@ countPrimes({c:0,n:0,k:Math.max(0, 5000 - my_delay)}, function(result) {
 
 		blessed_lines["master"] = "Master: " + obj.address;
 		setContent();
-
+		d.sendTo('192.168.1.108',{data: "this is amazing when it displays"});
 	});
 
 });
