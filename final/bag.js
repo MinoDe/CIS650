@@ -10,6 +10,7 @@ var ip = require('ip');
 var app = express();
 
 app.use(bodyParser.urlencoded());
+app.use(express.static(__dirname + '/public'));
 
 
 var pi_sensors=['192.168.0.111','192.168.0.102','192.168.0.103'];
@@ -49,7 +50,7 @@ http.createServer(app).listen(app.get('port'), function(){
 
 
 setTimeout(function(){
-	postTo('/setup',{ip: ip.address(), port: 3000},pi_sensors[0],3000)
+	postTo('/setup',{ip: ip.address(), port: 3000},pi_sensors[0],3000);
 }, 1000);
 
 

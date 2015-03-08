@@ -15,21 +15,6 @@ app.use(bodyParser.urlencoded());
 var output_val = "10";
 var input_number = "";
 var reading_from_input = false;
-app.all('/', function(req, res) {
-	logger_box.setContent("Received request from IP " + req.ip);
-	screen.render();
-	if(!reading_from_input) {
-		res.write(output_val);
-	}
-	else {
-		if(input_number.length == 0)
-			res.write("0");
-		else
-			res.write(parseInt(input_number).toString());
-	}
-
-    res.end();
-});
 
 // Create a screen object.
 var screen = blessed.screen();
@@ -157,20 +142,19 @@ http.createServer(app).listen(app.get('port'), function(){
 });
 
 
-
-
 // Configuring Bag interaction functionality
-var bag_ip = "0.0.0.0", bag_port = 3000;
+var bag_ip = false, bag_port = false;
 app.post('/setup', function(req, res) {
 	var post_data = req.body;
+
+	if(bag_ip === false)
+		setTimeout(bagCheckLoop, 1000);
 
 	bag_ip = post_data.ip;
 	bag_port = post_data.port;
 
 	res.write(JSON.stringify({success: true}));
     res.end();
-
-	setTimeout(bagCheckLoop, 1000);
 });
 function bagCheckLoop() {
 	postTo('/check', {ip: ip.address()}, bag_ip, bag_port, function(response) {
