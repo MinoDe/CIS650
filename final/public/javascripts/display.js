@@ -1,5 +1,5 @@
 $(document).ready(function(){
-		//setInterval(function(){ 
+		setInterval(function(){ 
     $.ajax("/map",{
     	success: function(data){
     		var parsed= $.parseJSON(data);
@@ -17,6 +17,9 @@ $(document).ready(function(){
     				else if(parsed[i][j].truck=="B"){
     					$("#"+currid).css('background', truckB);
     				}
+                    else{
+                        $("#"+currid).removeAttr('style');
+                    }
     			}
     		}
     	}
@@ -24,6 +27,6 @@ $(document).ready(function(){
      
 },
 error:function(){alert("Error occurred")}
-//}, 2000);
+}, 2000);
     }); 
 });
