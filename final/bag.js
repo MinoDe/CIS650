@@ -26,12 +26,11 @@ var w1_assign=[0];
 
 var map = [
     [false, {id:4 , truck:"A"}],
-    [{id: 1, truck:"X"}, {id: 5,truck:"X"}],
-    [{id: 2,truck:"X"}, {id: 6,truck:"X"}],
-    [{id: 3,truck:"X"}, {id: 7,truck:"X"}],
+    [{id: 1, truck:"X", count:0}, {id: 5,truck:"X"}],
+    [{id: 2,truck:"X",count:0}, {id: 6,truck:"X"}],
+    [{id: 3,truck:"X",count:0}, {id: 7,truck:"X"}],
     [false, {id: 8, truck:"B"}]
 ];
-
 
 // Create a screen object.
 var screen = blessed.screen();
@@ -98,13 +97,15 @@ app.post('/check', function(req, res) {
 		if(w1_queue.length >= 1) {
 			// run loop for w1_assign, look for first '0' (not assigned)
 			var idx; var found=false;
+			
+			/*
 			for(idx=0; idx<w1_assign.length; idx++){
 				if(w1_assign[idx]==0) {
 					w1_assign[idx]=1;
 					found=true;
 					break;
 				}
-			}
+			}*/
 			// job found?
 			if(found) {
 				if(temp_ip==workers[0]) {
@@ -178,6 +179,7 @@ app.post('/result', function(req, res) {
 			for (var i=0; i<map[m].length; i++) {
 				if(map[m][i].truck == truck_id && tile_ids.indexOf(map[m][i].id) == -1) {
 					map[m][i].truck = "X";
+					map[m][i].count -= 1;
 				}
 			}
 		}
@@ -186,6 +188,8 @@ app.post('/result', function(req, res) {
 		res.end();
 	}	
 });
+// read sensor, assign job, set and read sensor, close bay
+
 
 app.post('/status', function(req, res) {
 	// receive result from sensors, workers
@@ -217,6 +221,7 @@ app.get('/map', function(req, res) {
 	// receive result from sensors, workers
 	//var post_data = req.body;
 	res.write(JSON.stringify(map));
+
 	res.end();
 
 });
@@ -225,8 +230,51 @@ app.post('/bay', function(req, res){
 	var post_data = req.body;
 	var bay_id = post_data.id;
 	w1_queue.push({tile_id:bay_id});
+
+	if (bay_id==1)
+		map[bay_id-1].count += 1
+	else if (bay_id==2)
+		map[bay_id-1].count += 1
+	else if (bay_id==3)
+		map[bay_id-1].count += 1
+	
 	console.log("bay_id that was assigned: " + bay_id)
+
 });
+
+/*
+app.post('/sensors', function(req, res){
+	var post_data = req.body;
+	var sensor_id = post_data.id;
+
+	var flag=0;
+
+	w1_queue.push({tile_id:bay_id});
+
+	if (sensor_id==1) {
+		if (s1_queue.length > 0)
+			flag = 1;
+	}
+	else if (sensor_id==2) {
+		if (s2_queue.length > 0)
+			flag = 1;
+	}
+	else if (sensor_id==3) {
+		if (s3_queue.length > 0)
+			flag = 1;
+	}
+	if(flag ==1) {
+		res.write(JSON.stringify({res: true}));
+	}
+	else
+	{
+		res.write(JSON.stringify({res: false}));	
+	}
+	
+	console.log("bay_id that was assigned: " + bay_id)
+
+});
+*/
 
 function postTo(url, data, host, port, callback) {
 	var post_data = querystring.stringify(data);
