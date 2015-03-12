@@ -17,6 +17,18 @@ $(document).ready(function(){
     				else if(parsed[i][j].truck=="B"){
     					$("#"+currid).css('background', truckB);
     				}
+    				else if(parsed[i][j].truck=="X"&&(currid==1 || currid==2 || currid==3){
+    					if(currid.count>0){
+    						$("#"+currid).css('background','yellow');
+        					$("#"+currid).html("Work placed in this bay. Count: "+currid.count);
+    					}
+    					else if(currid.count==0){
+    						$("#"+currid).html(currid);
+    					}
+    					else{
+    						$("#"+currid).html("Error: work in negatives");
+    					}
+    				}
                     else{
                         $("#"+currid).removeAttr('style');
                     }
