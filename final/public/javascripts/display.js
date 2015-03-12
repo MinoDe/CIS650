@@ -26,7 +26,11 @@ $(document).ready(function(){
    
      
 },
+<<<<<<< Updated upstream
 error:function(){alert("Error occurred")}
+=======
+error:function(){console.log    ("Error occurred")}
+>>>>>>> Stashed changes
 }, 2000);
     }); 
 });
