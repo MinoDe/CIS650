@@ -50,7 +50,7 @@ http.createServer(app).listen(app.get('port'), function(){
 
 
 setTimeout(function(){
-	postTo('/setup',{ip: ip.address(), port: 3000},pi_sensors[0],3000);
+	//postTo('/setup',{ip: ip.address(), port: 3000},pi_sensors[0],3000)
 }, 1000);
 
 
@@ -221,6 +221,12 @@ app.get('/map', function(req, res) {
 
 });
 
+app.post('/bay', function(req, res){
+	var post_data = req.body;
+	var bay_id = post_data.id;
+	w1_queue.push({tile_id:bay_id});
+	console.log("bay_id that was assigned: " + bay_id)
+});
 
 function postTo(url, data, host, port, callback) {
 	var post_data = querystring.stringify(data);
