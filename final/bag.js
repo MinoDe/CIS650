@@ -14,15 +14,15 @@ app.use(express.static(__dirname + '/public'));
 
 
 var pi_sensors=['192.168.0.111','192.168.0.102','192.168.0.103'];
-var workers=['192.168.0.110','192.168.0.121','192.168.0.122'];
+var workers=['192.168.0.110','192.168.0.121'];
 var s1_queue=[20];
 var s2_queue=[];
 var s3_queue=[];
 var s_val=[undefined, undefined, undefined];
 
-var w1_queue=[{tile_id:1}];
+var w1_queue=[{tile_id:1}, {tile_id: 3}];
 var w1_bay=[];
-var w1_assign=[0];
+var w1_assign=[false, false];
 
 var map = [
     [false, {id:4 , truck:"X"}],
@@ -49,7 +49,7 @@ http.createServer(app).listen(app.get('port'), function(){
 
 
 setTimeout(function(){
-	//postTo('/setup',{ip: ip.address(), port: 3000},pi_sensors[0],3000)
+	postTo('/setup',{ip: ip.address(), port: 3000},workers[0],3000)
 }, 1000);
 
 
@@ -94,9 +94,11 @@ app.post('/check', function(req, res) {
 		}
 	}
 	else {
+		var job_already_assigned = false, no_free_job = true, job;
 		if(w1_queue.length >= 1) {
+
 			// run loop for w1_assign, look for first '0' (not assigned)
-			var idx; var found=false;
+			/*var idx; var found=false;
 
 			for(idx=0; idx<w1_assign.length; idx++){
 				if(w1_assign[idx]==0) {
@@ -124,15 +126,35 @@ app.post('/check', function(req, res) {
     		else {
     			// all jobs taken, create new job
 
-    		}
+    		}*/
+
+			// Check queue for job already given to truck
+			for(var i=0;i<w1_queue.length;i++) {
+				if(w1_assign[i] == temp_ip) {
+					job_already_assigned = true;
+				}
+			}
+			if(!job_already_assigned) {
+				for(var i=0;i<w1_queue.length;i++) {
+					if(w1_assign[i] === false) {
+						w1_assign[i] = temp_ip;
+						job = w1_queue[i];
+						no_free_job = false;
+						break;
+					}
+				}
+			}
+			if(!no_free_job) {
+				res.write(JSON.stringify({jobRequested: true, data: job}));
+				res.end();
+			}
 
 		}
-		else {
-			// push new job
-
+		if(job_already_assigned || no_free_job) {
 			res.write(JSON.stringify({readRequested: false}));
 			res.end();
 		}
+		//console.log("Job assigned: " + job_already_assigned + ", no free job: " + no_free_job);
 	}
 });
 
@@ -171,7 +193,11 @@ app.post('/result', function(req, res) {
 */
 	else if (temp_ip==workers[0]) {
 		var val =post_data.value; //[1]
-
+		var current_index = w1_assign.indexOf(temp_ip);
+		if(current_index != -1) {
+			w1_assign.splice(current_index, 1);
+			w1_queue.splice(current_index, 1);
+		/*
 		var tile_ids = post_data.tile_ids
 		var truck_id= post_data.truck_id;
 		for(var m in map) {
@@ -180,10 +206,9 @@ app.post('/result', function(req, res) {
 					map[m][i].truck = "X";
 					map[m][i].count -= 1;
 				}
-			}
+			}*/
 		}
 
-		console.log('val ' + val + ' posted to s_val[2]');
 		res.end();
 	}	
 });
@@ -191,28 +216,39 @@ app.post('/result', function(req, res) {
 
 
 app.post('/status', function(req, res) {
-	// receive result from sensors, workers
+	// receive information when a worker moves or changes direction...
 	var post_data = req.body;
 
-	temp_ip = post_data.ip;
+	var truck_id = post_data.ip;
 
-	var val =post_data.value; //[1]
+	var val =post_data.value;
 
-	var tile_ids = post_data.tile_ids
-	var truck_id=post_data.truck_id;
+	var tile_ids = post_data.tile_ids;
+	// Make sure tile IDs are an array
+	if(typeof tile_ids == 'string') {
+		tile_ids = [tile_ids];
+	}
+	for(var i=0;i<tile_ids.length;i++) {
+		tile_ids[i] = parseInt(tile_ids[i]);
+	}
 
 	for(var m in map) {
 		for (var i=0; i<map[m].length; i++) {
 			if(map[m][i].truck == truck_id && tile_ids.indexOf(map[m][i].id) == -1) {
 				map[m][i].truck = "X";
 			}
-			else if(map[m][i].truck == "X" && tile_ids.indexOf(map[m][i].id) != -1) {
+			else if(map[m][i].truck != truck_id && tile_ids.indexOf(map[m][i].id) != -1) {
 				map[m][i].truck = truck_id;
 			}
 		}
 	}
 
-	console.log('val ' + val + ' posted to s_val[2]');
+	//console.log(typeof post_data.tile_ids, post_data.tile_ids);
+	console.log(map);
+	console.log(post_data.current_position, post_data.current_direction);
+	//console.log(w1_queue);
+	//console.log(w1_assign);
+
 	res.end();
 });
 
