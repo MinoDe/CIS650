@@ -20,7 +20,7 @@ $(document).ready(function(){
 							else if(parsed[i][j].truck=="X"&&(currid==1 || currid==2 || currid==3)){
 								if(parsed[i][j].count>0){
 									$("#"+currid).css('background','yellow');
-									$("#"+currid).html("Work placed in this bay. Count: "+parsed[i][j].count);
+									//$("#"+currid).html("Work placed in this bay. Count: "+parsed[i][j].count);
 								}
 								else if(parsed[i][j].count==0){
 									$("#"+currid).removeAttr('style');
@@ -41,6 +41,6 @@ $(document).ready(function(){
 			},
 			error:function(){console.log("Error occurred")}
 
-		}, 2000);
-	}); 
+		});
+	}, 2000); 
 });
