@@ -25,11 +25,11 @@ var w1_bay=[];
 var w1_assign=[0];
 
 var map = [
-    [false, {id:4 , truck:"A"}],
+    [false, {id:4 , truck:"X"}],
     [{id: 1, truck:"X", count:0}, {id: 5,truck:"X"}],
-    [{id: 2,truck:"X",count:0}, {id: 6,truck:"X"}],
-    [{id: 3,truck:"X",count:0}, {id: 7,truck:"X"}],
-    [false, {id: 8, truck:"B"}]
+    [{id: 2,truck:"A",count:0}, {id: 6,truck:"X"}],
+    [{id: 3,truck:"B",count:0}, {id: 7,truck:"X"}],
+    [false, {id: 8, truck:"X"}]
 ];
 
 // Create a screen object.
@@ -97,15 +97,14 @@ app.post('/check', function(req, res) {
 		if(w1_queue.length >= 1) {
 			// run loop for w1_assign, look for first '0' (not assigned)
 			var idx; var found=false;
-			
-			/*
+
 			for(idx=0; idx<w1_assign.length; idx++){
 				if(w1_assign[idx]==0) {
 					w1_assign[idx]=1;
 					found=true;
 					break;
 				}
-			}*/
+			}
 			// job found?
 			if(found) {
 				if(temp_ip==workers[0]) {
@@ -232,12 +231,12 @@ app.post('/bay', function(req, res){
 	w1_queue.push({tile_id:bay_id});
 
 	if (bay_id==1)
-		map[bay_id-1].count += 1
+		map[bay_id][0].count += 1
 	else if (bay_id==2)
-		map[bay_id-1].count += 1
+		map[bay_id][0].count += 1
 	else if (bay_id==3)
-		map[bay_id-1].count += 1
-	
+		map[bay_id][0].count += 1
+
 	console.log("bay_id that was assigned: " + bay_id)
 
 });
