@@ -2,13 +2,29 @@
 # http://www.seeedstudio.com/wiki/Grove_-_Ultrasonic_Ranger
 
 from grovepi import *
+import time
 
 # Connect the Grove Ultrasonic Ranger to digital port D4
 # SIG,NC,VCC,GND
 ultrasonic_ranger = 4
 
-from flask import Flask
+bag_ip = False
+bag_port = False
+
+from flask import Flask, request
 app = Flask(__name__)
+
+@app.route("/setup", methods=['POST'])
+def setup():
+	data = json.loads(request.data)
+	if(bag_ip == False):
+		bag_ip = data["ip"]
+		bag_port = data["port"]
+		while(1):
+			time.sleep(2)
+			
+		
+	
 
 @app.route("/hello", methods=['GET', 'POST'])
 def hello():

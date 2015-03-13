@@ -148,7 +148,7 @@ app.post('/setup', function(req, res) {
 	var post_data = req.body;
 
 	if(bag_ip === false)
-		setTimeout(bagCheckLoop, 1000);
+		setTimeout(bagCheckLoop, 2000);
 
 	bag_ip = post_data.ip;
 	bag_port = post_data.port;
@@ -156,6 +156,7 @@ app.post('/setup', function(req, res) {
 	res.write(JSON.stringify({success: true}));
     res.end();
 });
+
 function bagCheckLoop() {
 	postTo('/check', {ip: ip.address()}, bag_ip, bag_port, function(response) {
 		response = JSON.parse(response);
@@ -164,7 +165,7 @@ function bagCheckLoop() {
 		}
 	});
 
-	setTimeout(bagCheckLoop, 1000);
+	setTimeout(bagCheckLoop, 2000);
 }
 
 function postTo(url, data, host, port, callback) {
