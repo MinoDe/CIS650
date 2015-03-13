@@ -25,13 +25,12 @@ var w1_bay=[];
 var w1_assign=[false, false];
 
 var map = [
-    [false, {id:4 , truck:"X"}],
-    [{id: 1, truck:"X"}, {id: 5,truck:"X"}],
-    [{id: 2,truck:"X"}, {id: 6,truck:"X"}],
-    [{id: 3,truck:"X"}, {id: 7,truck:"X"}],
-    [false, {id: 8, truck:"X"}]
+    [false, {id:4 , truck:"A"}],
+    [{id: 1, truck:"X", count:0}, {id: 5,truck:"X"}],
+    [{id: 2,truck:"X",count:0}, {id: 6,truck:"X"}],
+    [{id: 3,truck:"X",count:0}, {id: 7,truck:"X"}],
+    [false, {id: 8, truck:"B"}]
 ];
-
 
 // Create a screen object.
 var screen = blessed.screen();
@@ -165,11 +164,23 @@ app.post('/result', function(req, res) {
 		if(current_index != -1) {
 			w1_assign.splice(current_index, 1);
 			w1_queue.splice(current_index, 1);
+		/*
+		var tile_ids = post_data.tile_ids
+		var truck_id= post_data.truck_id;
+		for(var m in map) {
+			for (var i=0; i<map[m].length; i++) {
+				if(map[m][i].truck == truck_id && tile_ids.indexOf(map[m][i].id) == -1) {
+					map[m][i].truck = "X";
+					map[m][i].count -= 1;
+				}
+			}*/
 		}
 
 		res.end();
 	}	
 });
+// read sensor, assign job, set and read sensor, close bay
+
 
 app.post('/status', function(req, res) {
 	// receive information when a worker moves or changes direction...
@@ -212,6 +223,7 @@ app.get('/map', function(req, res) {
 	// receive result from sensors, workers
 	//var post_data = req.body;
 	res.write(JSON.stringify(map));
+
 	res.end();
 
 });
@@ -220,8 +232,51 @@ app.post('/bay', function(req, res){
 	var post_data = req.body;
 	var bay_id = post_data.id;
 	w1_queue.push({tile_id:bay_id});
+
+	if (bay_id==1)
+		map[bay_id-1].count += 1
+	else if (bay_id==2)
+		map[bay_id-1].count += 1
+	else if (bay_id==3)
+		map[bay_id-1].count += 1
+	
 	console.log("bay_id that was assigned: " + bay_id)
+
 });
+
+/*
+app.post('/sensors', function(req, res){
+	var post_data = req.body;
+	var sensor_id = post_data.id;
+
+	var flag=0;
+
+	w1_queue.push({tile_id:bay_id});
+
+	if (sensor_id==1) {
+		if (s1_queue.length > 0)
+			flag = 1;
+	}
+	else if (sensor_id==2) {
+		if (s2_queue.length > 0)
+			flag = 1;
+	}
+	else if (sensor_id==3) {
+		if (s3_queue.length > 0)
+			flag = 1;
+	}
+	if(flag ==1) {
+		res.write(JSON.stringify({res: true}));
+	}
+	else
+	{
+		res.write(JSON.stringify({res: false}));	
+	}
+	
+	console.log("bay_id that was assigned: " + bay_id)
+
+});
+*/
 
 function postTo(url, data, host, port, callback) {
 	var post_data = querystring.stringify(data);
