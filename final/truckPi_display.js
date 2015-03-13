@@ -105,7 +105,13 @@ function Direction(command, args, new_position, new_direction) {
 function getDirections(new_position) {
 	var directions = [],
 		row_col = getRowCol(new_position), row = row_col[0], col = row_col[1],
+		my_row_col = getRowCol(my_loc_id), my_row = my_row_col[0], my_col = my_row_col[1],
 		current_loc = {col: my_col, row: my_row}, current_direction = my_direction;
+
+	//setTimeout(function() {
+	//	logbox.setContent("Row: " + row + ", Col: " + col + "\nMy row: " + my_row + ", My col: " + my_col);
+	//	screen.render();
+	//}, 2000);
 
 	// If truck is in bay it needs to move to the right
 	if(my_col == 0) {
@@ -118,13 +124,14 @@ function getDirections(new_position) {
 	}
 
 	// Moving up or down the right column
+	var row_diff = Math.abs(current_loc.row - row);
 	if(current_loc.row > row) {
 		var turn_degree = getTurnDegree(current_direction, 0);
 		if(turn_degree != 0) {
 			current_direction = 0;
 			directions.push(new Direction("TurnInPlace", [turn_degree], map[current_loc.row][current_loc.col].id, current_direction));
 		}
-		for(var i=0;i<current_loc.row - row;i++) {
+		for(var i=0;i<row_diff;i++) {
 			directions.push(new Direction("Move", [true, tile_length, 8], map[--current_loc.row][current_loc.col].id, current_direction));
 		}
 	}
@@ -134,7 +141,7 @@ function getDirections(new_position) {
 			current_direction = 180;
 			directions.push(new Direction("TurnInPlace", [turn_degree], map[current_loc.row][current_loc.col].id, current_direction));
 		}
-		for(var i=0;i<row - current_loc.row;i++) {
+		for(var i=0;i<row_diff;i++) {
 			directions.push(new Direction("Move", [true, tile_length, 8], map[++current_loc.row][current_loc.col].id, current_direction));
 		}
 	}
@@ -148,7 +155,6 @@ function getDirections(new_position) {
 		}
 		directions.push(new Direction("Move", [true, tile_length, 8], map[current_loc.row][--current_loc.col].id, current_direction));
 	}
-
 	return directions;
 }
 
@@ -197,10 +203,17 @@ app.post('/setup', function(req, res) {
 
 	logbox.setContent("Bag IP: " + bag_ip + "\n" + "Bag port: " + bag_port);
 	screen.render();
+
+	postTo('/status', {ip: ip.address(), current_position: my_loc_id, current_direction: my_direction, tile_ids: advertisement.current}, bag_ip, bag_port);
 });
 
 var moving_to = false, directions = [], requesting_ids = false;
 function bagCheckLoop() {
+	if(moving_to !== false)
+		return;
+	//logbox.setContent("Checking bag " + new Date().toString());
+	//screen.render();
+
 	postTo('/check', {ip: ip.address()}, bag_ip, bag_port, function(response) {
 		response = JSON.parse(response);
 		if(response.jobRequested === true) {
@@ -220,6 +233,7 @@ function bagCheckLoop() {
 				d.advertise(advertisement);
 
 				logbox.setContent("Requesting " + requesting_ids.length + " tiles...");
+				screen.render();
 			}
 			else {
 				// Immediately enter critical section
@@ -228,12 +242,11 @@ function bagCheckLoop() {
 		}
 	});
 
-	if(moving_to === false)
-		setTimeout(bagCheckLoop, 1000);
+	setTimeout(bagCheckLoop, 1000);
 }
 
 var d = Discover({port:5000});
-var node_addresses = [], timestamp = 0, pending_reply = false, requesting = false, moving = false;
+var node_addresses = [], timestamp = 0, pending_reply = false, requesting = false;
 var advertisement = {ip: ip.address(), ts: timestamp, current: [my_loc_id], request: false, votes: []};
 
 function overlap(array1, array2) {
@@ -267,29 +280,27 @@ function checkPendingReplies(ip_address) {
 }
 
 function startCriticalSection() {
-	moving = true;
 	requesting = false;
 	advertisement.request = false;
 	advertisement.current = requesting_ids.slice(0);
 	requesting_ids = false;
 	d.advertise(advertisement);
 
-	logbox.setContent("Starting directions!");
-	screen.render();
+	postTo('/status', {ip: ip.address(), current_position: my_loc_id, current_direction: my_direction, tile_ids: advertisement.current}, bag_ip, bag_port);
 
 	nextDirection();
 }
 
 var next_direction = false;
 function nextDirection() {
-	if(!moving)
+	if(moving_to === false)
 		return;
 	if(next_direction !== false) {
 		// Update position
 		if(my_loc_id != next_direction.new_position) {
 			var loc_index = advertisement.current.indexOf(my_loc_id);
 			if(loc_index != -1) {
-				advertisement.current.splice(loc_index);
+				advertisement.current.splice(loc_index, 1);
 				d.advertise(advertisement);
 			}
 		}
@@ -297,7 +308,7 @@ function nextDirection() {
 		my_loc_id = next_direction.new_position;
 		my_direction = next_direction.new_direction;
 
-		// TODO: Send update to bag
+		postTo('/status', {ip: ip.address(), current_position: my_loc_id, current_direction: my_direction, tile_ids: advertisement.current}, bag_ip, bag_port);
 	}
 	if(directions.length == 0) {
 		next_direction = false;
@@ -310,13 +321,14 @@ function nextDirection() {
 			
 			// TODO: Move back to starting position if in bay
 		});
-		moving = false;
+		moving_to = false;
+		setTimeout(bagCheckLoop, 1000);
 		return;
 	}
 	next_direction = directions.shift();
 
 	if(next_direction.command == "Move") {
-		box.setContent("Move " + next_direction.args[1] + " inches " + next_direction.args[0] + " at a speed of " + next_direction.args[2]);
+		box.setContent("Move " + next_direction.args[1] + " inches " + (next_direction.args[0] ? "forward" : "backwards") + " at a speed of " + next_direction.args[2]);
 		box.style.bg = "green";
 	}
 	else {
@@ -326,7 +338,15 @@ function nextDirection() {
 	screen.render();
 }
 
-box.on('click', nextDirection);
+var getting_next_dir = false;
+box.on('click', function() {
+	if(!getting_next_dir) {
+		getting_next_dir = true;
+		nextDirection();
+		setTimeout(function() {getting_next_dir = false}, 1000);
+	}
+	
+});
 
 // Node discover functionality for Agrawal Critical Section
 d.broadcast.on("hello", function (obj) {
