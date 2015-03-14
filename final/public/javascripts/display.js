@@ -1,3 +1,17 @@
+function checkcount(counter, currid){
+	if(counter>0){
+
+				$("#"+currid).css('background','yellow');
+				}
+				else if(counter==0){
+					$("#"+currid).removeAttr('style');
+					$("#"+currid).html(currid);
+				}
+				else{
+					$("#"+currid).html("Error: work in negatives");
+				}
+}
+
 $(document).ready(function(){
 	setInterval(function(){
  		$.ajax("/map",{
@@ -7,9 +21,9 @@ $(document).ready(function(){
 
 				for(var i=0; i< parsed.length; i++){
 					for(var j=0; j<parsed[i].length; j++){
-
 						if(parsed[i][j]!=false){
 							var currid=parsed[i][j].id;
+							
 							if(parsed[i][j].truck=="A"){
 
 								$("#"+currid).css('background', truckA);
@@ -17,18 +31,17 @@ $(document).ready(function(){
 							else if(parsed[i][j].truck=="B"){
 								$("#"+currid).css('background', truckB);
 							}
-							else if(parsed[i][j].truck=="X"&&(currid==1 || currid==2 || currid==3)){
-								if(parsed[i][j].count>0){
-									$("#"+currid).css('background','yellow');
-									//$("#"+currid).html("Work placed in this bay. Count: "+parsed[i][j].count);
+							else if(parsed[i][j].truck=="X"){
+								if(currid==1 && bay1){
+									checkcount(parsed[i][j].count, currid);
+								} else if (currid==2 && bay2){
+									checkcount(parsed[i][j].count, currid);
+
+								} else if (currid==3 && bay3){ 
+									checkcount(parsed[i][j].count, currid);
+
 								}
-								else if(parsed[i][j].count==0){
-									$("#"+currid).removeAttr('style');
-									$("#"+currid).html(currid);
-								}
-								else{
-									$("#"+currid).html("Error: work in negatives");
-								}
+								
 							}
 							else{
 								$("#"+currid).removeAttr('style');
