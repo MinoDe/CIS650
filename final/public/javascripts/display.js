@@ -32,6 +32,7 @@ $(document).ready(function(){
 								$("#"+currid).css('background', truckB);
 							}
 							else if(parsed[i][j].truck=="X"){
+                                $("#"+currid).removeAttr('style');
 								if(currid==1 && bay1){
 									checkcount(parsed[i][j].count, currid);
 								} else if (currid==2 && bay2){

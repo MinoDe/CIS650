@@ -35,7 +35,14 @@ $(document).ready(function(){
 			curr+="<br> Worked added to "+placework;
 			console.log(curr); 
 			$("#bag").html(curr);
-			$.post("/bay", {id:placework}); 
+			$.post("/bay", {id:placework}, 
+                success: function(data){
+
+                console.log("Bay click sent sucessfully");
+            },
+
+            error:function(){console.log("Error in sending bay data");
+        }); 
 		}
 		if(placework=="S1" || placework=="S2"|| placework=="S3"){
 			var sensor= placework.substr(placework.length -1);
