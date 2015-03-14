@@ -73,7 +73,7 @@ var map = [
 	[false, {id: 8}]
 ];
 var tile_length = 10;
-var my_direction = 0, my_loc_id = 4;
+var my_direction = 0, my_loc_id = 8;
 
 function getRowCol(tile_id) {
 	for(var i=0;i<map.length;i++) {
@@ -85,6 +85,7 @@ function getRowCol(tile_id) {
 	}
 }
 var my_row_col = getRowCol(my_loc_id), my_row = my_row_col[0], my_col = my_row_col[1];
+var start_position = my_loc_id;
 
 function getTurnDegree(start_direction, end_direction) {
 	dist = end_direction - start_direction
@@ -207,7 +208,7 @@ app.post('/setup', function(req, res) {
 	postTo('/status', {ip: ip.address(), current_position: my_loc_id, current_direction: my_direction, tile_ids: advertisement.current}, bag_ip, bag_port);
 });
 
-var moving_to = false, directions = [], requesting_ids = false;
+var moving_to = false, moving_to_bay = true, directions = [], requesting_ids = false;
 function bagCheckLoop() {
 	if(moving_to !== false)
 		return;
@@ -220,29 +221,34 @@ function bagCheckLoop() {
 			logbox.setContent("Got message from bag!\nMoving to " + response.data.tile_id);
 			screen.render();
 
-			moving_to = response.data.tile_id;
-			directions = getDirections(moving_to);
-			requesting_ids = [my_loc_id];
-			for(var i=0;i<directions.length;i++) {
-				if(requesting_ids.indexOf(directions[i].new_position) == -1)
-					requesting_ids.push(directions[i].new_position);
-			}
-			if(node_addresses.length > 0) {
-				// Run Ricart-Agrawal to get new tiles in critical section
-				advertisement.request = requesting_ids;
-				d.advertise(advertisement);
-
-				logbox.setContent("Requesting " + requesting_ids.length + " tiles...");
-				screen.render();
-			}
-			else {
-				// Immediately enter critical section
-				startCriticalSection();
-			}
+			targetAcquired(response.data.tile_id);
 		}
 	});
 
 	setTimeout(bagCheckLoop, 1000);
+}
+
+function targetAcquired(tile_id) {
+	moving_to = tile_id;
+	directions = getDirections(moving_to);
+	requesting_ids = [my_loc_id];
+	for(var i=0;i<directions.length;i++) {
+		if(requesting_ids.indexOf(directions[i].new_position) == -1)
+			requesting_ids.push(directions[i].new_position);
+	}
+	if(node_addresses.length > 0) {
+		// Run Ricart-Agrawal to get new tiles in critical section
+		pending_reply = node_addresses.slice(0);
+		advertisement.request = requesting_ids;
+		d.advertise(advertisement);
+
+		logbox.setContent("Requesting " + requesting_ids.length + " tiles...");
+		screen.render();
+	}
+	else {
+		// Immediately enter critical section
+		startCriticalSection();
+	}
 }
 
 var d = Discover({port:5000});
@@ -250,13 +256,13 @@ var node_addresses = [], timestamp = 0, pending_reply = false, requesting = fals
 var advertisement = {ip: ip.address(), ts: timestamp, current: [my_loc_id], request: false, votes: []};
 
 function overlap(array1, array2) {
-	return array1.filter(function(n) {return array2.indexOf(n) != -1}) > 0;
+	return array1.filter(function(n) {return array2.indexOf(n) != -1}).length > 0;
 }
 
 function voteFor(advertisement_object) {
 	for(var i=0;i<advertisement.votes.length;i++) {
 		if(advertisement.votes[i].ip == advertisement_object.ip) {
-			if(advertisment_object.ts == advertisement.votes[i].ts)
+			if(advertisement_object.ts == advertisement.votes[i].ts)
 				return;
 			else
 				advertisement.votes.splice(i, 1);
@@ -277,12 +283,15 @@ function checkPendingReplies(ip_address) {
 			startCriticalSection();
 		}
 	}
+	logbox.setContent("Checking replies... \n" + pending_reply.length + " needed");
+	screen.render();
 }
 
 function startCriticalSection() {
 	requesting = false;
 	advertisement.request = false;
 	advertisement.current = requesting_ids.slice(0);
+	advertisement.ts = ++timestamp;
 	requesting_ids = false;
 	d.advertise(advertisement);
 
@@ -308,21 +317,35 @@ function nextDirection() {
 		my_loc_id = next_direction.new_position;
 		my_direction = next_direction.new_direction;
 
+		logbox.setContent("My position: " + my_loc_id + "\nMy direction: " + my_direction);
+		screen.render();
+
 		postTo('/status', {ip: ip.address(), current_position: my_loc_id, current_direction: my_direction, tile_ids: advertisement.current}, bag_ip, bag_port);
 	}
 	if(directions.length == 0) {
 		next_direction = false;
-
-		box.setContent("Arrived at destination!");
-		box.style.bg = "blue";
-		screen.render();
- 
-		postTo('/result', {ip: ip.address()}, bag_ip, bag_port, function() {
-			
-			// TODO: Move back to starting position if in bay
-		});
 		moving_to = false;
-		setTimeout(bagCheckLoop, 1000);
+		if(moving_to_bay) {
+			box.setContent("Arrived at bay!");
+			box.style.bg = "blue";
+			logbox.setContent("");
+			screen.render();
+ 
+			postTo('/result', {ip: ip.address()}, bag_ip, bag_port);
+			setTimeout(function() {
+				moving_to_bay = false;
+				targetAcquired(start_position);
+			}, 1500);
+
+		}
+		else {
+			box.setContent("Waiting for directions...");
+			box.style.bg = "black";
+			screen.render();
+
+			moving_to_bay = true;
+			setTimeout(bagCheckLoop, 1000);
+		}
 		return;
 	}
 	next_direction = directions.shift();
@@ -354,14 +377,19 @@ d.broadcast.on("hello", function (obj) {
 		if(obj.advertisement.ts > timestamp)
 			timestamp = obj.advertisement.ts;
 
+		//logbox.setContent(obj.advertisement.request.toString() + "\n" + (advertisement.request && obj.advertisement.request ? overlap(advertisement.request, obj.advertisement.request) : ""));
+		//screen.render();
+		//return;
 		if((obj.advertisement.request !== false &&
-			// We are not requesting or there is no overlap
-			(advertisement.request === false && !overlap(advertisement.current, obj.advertisement.request)) ||
-			// We are currently requesting and either there's no overlap between requests or the other request beats this one in priority and doesn't overlap the currently owned tiles
-			(advertisement.request !== false && (!overlap(advertisment.request, obj.advertisement.request) ||
+			// We are not requesting and there is no overlap with our currently held position
+			((advertisement.request === false && !overlap(advertisement.current, obj.advertisement.request)) ||
+			// We are currently requesting and either there's no overlap between requests
+			//  or the other request beats this one in priority and doesn't overlap the currently owned tiles
+			//  or the other request is currently on our requested tile
+			(advertisement.request !== false && (!overlap(advertisement.request, obj.advertisement.request) ||
 				((obj.advertisement.ts < advertisement.ts  || (obj.advertisement.ts == advertisement.ts && obj.advertisement.ip > ip.address()))
-				&& !overlap(advertisement.current, obj.advertisement.tile_ids)))
-			)
+				&& !overlap(advertisement.current, obj.advertisement.request)) || overlap(advertisement.request, obj.advertisement.current))
+			))
 		)) {
 			// Vote for other node to proceed with critical section
 			voteFor(obj.advertisement);

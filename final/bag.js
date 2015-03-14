@@ -14,13 +14,13 @@ app.use(express.static(__dirname + '/public'));
 
 
 var pi_sensors=['192.168.0.111','192.168.0.102','192.168.0.103'];
-var workers=['192.168.0.110','192.168.0.121'];
+var workers=['192.168.0.110','192.168.0.105'];
 var s1_queue=[20];
 var s2_queue=[];
 var s3_queue=[];
 var s_val=[undefined, undefined, undefined];
 
-var w1_queue=[{tile_id:1}, {tile_id: 3}];
+var w1_queue=[{tile_id:2}, {tile_id: 2}];
 var w1_bay=[];
 var w1_assign=[false, false];
 
@@ -50,6 +50,7 @@ http.createServer(app).listen(app.get('port'), function(){
 
 setTimeout(function(){
 	postTo('/setup',{ip: ip.address(), port: 3000},workers[0],3000)
+	postTo('/setup',{ip: ip.address(), port: 3000},workers[1],3000)
 }, 1000);
 
 
@@ -191,7 +192,7 @@ app.post('/result', function(req, res) {
     	[false, {id: 8, truck:"B"}]
 	];
 */
-	else if (temp_ip==workers[0]) {
+	else if (workers.indexOf(temp_ip) != -1) {
 		var val =post_data.value; //[1]
 		var current_index = w1_assign.indexOf(temp_ip);
 		if(current_index != -1) {
