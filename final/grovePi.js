@@ -1,22 +1,21 @@
 var os = require('os');
 var http = require('http');
 var express = require('express');
-var connect = require("connect");
-var crypto = require('crypto');
 var bodyParser = require('body-parser');
 var querystring = require('querystring');
 var ip = require('ip');
 var app = express();
+var PythonShell = require('python-shell');
+
+var options = {
+  mode: 'text',
+  pythonPath: '/usr/bin/python',
+  scriptPath: '/home/pi/GrovePi/Software/Python/',
+};
 
 app.use(bodyParser.urlencoded());
 
 app.set('port', process.env.PORT || 3000);
-
-// Quit on Escape, q, or Control-C.
-screen.key(['escape', 'q', 'C-c'], function(ch, key) {
-	return process.exit(0);
-});
-
 
 http.createServer(app).listen(app.get('port'), function(){
 	console.log("Express server listening on port " + app.get('port'));
@@ -42,10 +41,10 @@ function bagCheckLoop() {
 	postTo('/check', {ip: ip.address()}, bag_ip, bag_port, function(response) {
 		response = JSON.parse(response);
 		if(response.readRequested == true) {
-			cmd = "sudo python /home/pi/GrovePi/Software/Python/grove_console.py";
-			exec(cmd, function(err, out, code) {
-				postTo('/result', {ip: ip.address(), value: out}, bag_ip, bag_port);
-				process.exit(code);
+			PythonShell.run('grove_console.py', options, function (err, results) {
+				var result = typeof results != 'undefined' ? results[0] : 0;
+				console.log(result);
+				postTo('/result', {ip: ip.address(), value: result}, bag_ip, bag_port);
 			});
 		}
 	});

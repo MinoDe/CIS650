@@ -13,22 +13,23 @@ app.use(bodyParser.urlencoded());
 app.use(express.static(__dirname + '/public'));
 
 
-var pi_sensors=['192.168.0.111','192.168.0.102','192.168.0.103'];
+var pi_sensors=['192.168.0.120','192.168.0.111'];
 var workers=['192.168.0.110','192.168.0.105'];
-var s1_queue=[20];
-var s2_queue=[];
-var s3_queue=[];
+var s1_queue=[true];
+var s2_queue=[true];
+var s3_queue=[true];
 var s_val=[undefined, undefined, undefined];
+var bay_blocked=[, false,false,false];	// sensor activated, bay added here
 
-var w1_queue=[{tile_id:2}, {tile_id: 2}];
-var w1_bay=[];
-var w1_assign=[false, false];
+var w1_queue=[];
+var w1_assign=[];
+var sensor_threshold=15;
 
 var map = [
     [false, {id:4 , truck:"X"}],
     [{id: 1, truck:"X", count:0}, {id: 5,truck:"X"}],
-    [{id: 2,truck:"A",count:0}, {id: 6,truck:"X"}],
-    [{id: 3,truck:"B",count:0}, {id: 7,truck:"X"}],
+    [{id: 2,truck:"X",count:0}, {id: 6,truck:"X"}],
+    [{id: 3,truck:"X",count:0}, {id: 7,truck:"X"}],
     [false, {id: 8, truck:"X"}]
 ];
 
@@ -49,21 +50,24 @@ http.createServer(app).listen(app.get('port'), function(){
 
 
 setTimeout(function(){
-	postTo('/setup',{ip: ip.address(), port: 3000},workers[0],3000)
-	postTo('/setup',{ip: ip.address(), port: 3000},workers[1],3000)
+	for(var i=0; i<2; i++){
+		postTo('/setup',{ip: ip.address(), port: 3000},pi_sensors[i],3000)
+		postTo('/setup',{ip: ip.address(), port: 3000},workers[i],3000)	
+	}
+	
 }, 1000);
 
 
 app.post('/check', function(req, res) {
 	// give truck, sensor jobs
 	var post_data = req.body;
-
+	//console.log('hell '  + post_data )
 	temp_ip = post_data.ip;
 
 	if (temp_ip==pi_sensors[0]) {
 		if(s1_queue.length >= 1) {
 			res.write(JSON.stringify({readRequested: true, job_id: s1_queue[0]}));
-			s1_queue=[];
+			//s1_queue=[];
     		res.end();
 		}
 		else {
@@ -75,7 +79,7 @@ app.post('/check', function(req, res) {
 	else if (temp_ip==pi_sensors[1]) {
 		if(s2_queue.length >= 1) {
 			res.write(JSON.stringify({readRequested: true, job_id: s2_queue[0]}));
-			s2_queue=[];
+			//s2_queue=[];
     		res.end();
 		}
 		else {
@@ -86,7 +90,7 @@ app.post('/check', function(req, res) {
 	else if (temp_ip==pi_sensors[2]) {
 		if(s3_queue.length >= 1) {
 			res.write(JSON.stringify({readRequested: true, job_id: s3_queue[0]}));
-    		s3_queue=[];
+    		//s3_queue=[];
     		res.end();
 		}
 		else {
@@ -137,7 +141,8 @@ app.post('/check', function(req, res) {
 			}
 			if(!job_already_assigned) {
 				for(var i=0;i<w1_queue.length;i++) {
-					if(w1_assign[i] === false) {
+					// check whether bay blocked
+					if(w1_assign[i] === false && bay_blocked[w1_queue[i].tile_id]==false) {
 						w1_assign[i] = temp_ip;
 						job = w1_queue[i];
 						no_free_job = false;
@@ -167,20 +172,20 @@ app.post('/result', function(req, res) {
 
 	if (temp_ip==pi_sensors[0]) {
 		var val =post_data.value;
-		s_val[0]=val;	
-		console.log('val ' + val + ' posted to s_val[0]');
+		s_val[0]=val;
+		//console.log('val ' + val + ' posted to s_val[0]');
 		res.end();
 	}
 	else if (temp_ip==pi_sensors[1]) {
 		var val =post_data.value;
-		s_val[1]=val;	
-		console.log('val ' + val + ' posted to s_val[1]');
+		s_val[1]=val;
+		//console.log('val ' + val + ' posted to s_val[1]');
 		res.end();
 	}
 	else if (temp_ip==pi_sensors[2]) {
 		var val =post_data.value;
-		s_val[2]=val;	
-		console.log('val ' + val + ' posted to s_val[2]');
+		s_val[2]=val;
+		//console.log('val ' + val + ' posted to s_val[2]');
 		res.end();
 	}
 
@@ -196,6 +201,7 @@ app.post('/result', function(req, res) {
 		var val =post_data.value; //[1]
 		var current_index = w1_assign.indexOf(temp_ip);
 		if(current_index != -1) {
+			map[w1_queue[current_index].tile_id][0].count--;
 			w1_assign.splice(current_index, 1);
 			w1_queue.splice(current_index, 1);
 		/*
@@ -213,14 +219,39 @@ app.post('/result', function(req, res) {
 		res.end();
 	}	
 });
-// read sensor, assign job, set and read sensor, close bay
 
+
+// read sensor, assign job, set and read sensor, close bay
+app.post('/readsensor',function(req, res) {
+	var post_data=req.body;
+	var id = post_data.id;
+
+	if(id==1)
+		res.write(JSON.stringify({value: s_val[0]}));
+		
+	else if (id==2)
+		res.write(JSON.stringify({value: s_val[1]}));
+		
+	else if (id==3)
+		res.write(JSON.stringify({value: s_val[2]}));
+		
+res.end();
+	
+});
+
+// close bay
+app.post('/shutdown',function(req, res) {
+	var post_data=req.body;
+	var id = post_data.id;
+	var shut = JSON.parse(post_data.shut);
+	bay_blocked[id] = shut;
+});
 
 app.post('/status', function(req, res) {
 	// receive information when a worker moves or changes direction...
 	var post_data = req.body;
 
-	var truck_id = post_data.ip;
+	var truck_id = (post_data.ip == workers[0] ? "A" : "B");
 
 	var val =post_data.value;
 
@@ -246,7 +277,8 @@ app.post('/status', function(req, res) {
 
 	//console.log(typeof post_data.tile_ids, post_data.tile_ids);
 	console.log(map);
-	console.log(post_data.current_position, post_data.current_direction);
+	console.log(w1_queue);
+	
 	//console.log(w1_queue);
 	//console.log(w1_assign);
 
@@ -256,8 +288,18 @@ app.post('/status', function(req, res) {
 app.get('/map', function(req, res) {
 	// receive result from sensors, workers
 	//var post_data = req.body;
+	//console.log(bay_blocked);
 	res.write(JSON.stringify(map));
 
+	res.end();
+
+});
+
+app.get('/workqueue', function(req, res) {
+	// send work queue status
+	//var post_data = req.body;
+
+	res.write(JSON.stringify(w1_queue));
 	res.end();
 
 });
@@ -266,17 +308,22 @@ app.post('/bay', function(req, res){
 	var post_data = req.body;
 	var bay_id = post_data.id;
 	w1_queue.push({tile_id:bay_id});
-
+	w1_assign.push(false);
 	if (bay_id==1)
 		map[bay_id][0].count += 1
+
 	else if (bay_id==2)
 		map[bay_id][0].count += 1
 	else if (bay_id==3)
 		map[bay_id][0].count += 1
 
-	console.log("bay_id that was assigned: " + bay_id)
+	console.log("calling bay" + w1_queue);
+	console.log(w1_assign);
+	res.write(JSON.stringify(""));
+	res.end();
 
 });
+
 
 /*
 app.post('/sensors', function(req, res){
