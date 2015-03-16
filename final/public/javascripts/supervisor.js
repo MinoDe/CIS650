@@ -1,29 +1,3 @@
-var audioElement = document.createElement('audio');
-function shutbay(bay){
-
-	$("#"+bay).removeAttr('style');
-	$("#"+bay).append("<img src='images/giphy.gif' id=img"+bay+" style='width:100%; height:50%;'/>");
-	$("#Shut"+bay).html("Reopen Bay");
-	audioElement.setAttribute('src', 'http://soundbible.com/mp3/Warning Siren-SoundBible.com-898272278.mp3');
-	audioElement.setAttribute('autoplay', 'autoplay');
-
-	$.get();
-
-	audioElement.addEventListener("load", function() {
-		audioElement.play();
-	}, true);
-
-	audioElement.play();
-	$("#img"+bay).css("display","block");
-	$.post("/shutdown", {id:bay,shut:true});
-
-}
-function reopenbay(bay){
-	$("#Shut"+bay).html("Shutdown Bay");
-	$("#"+bay).html(bay);
-	audioElement.pause();
-	$.post("/shutdown", {id:bay,shut:false});
-}
 $(document).ready(function(){
 
 	$(this).click(function(event) {

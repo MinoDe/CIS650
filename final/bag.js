@@ -27,9 +27,9 @@ var sensor_threshold=15;
 
 var map = [
     [false, {id:4 , truck:"X"}],
-    [{id: 1, truck:"X", count:0}, {id: 5,truck:"X"}],
-    [{id: 2,truck:"X",count:0}, {id: 6,truck:"X"}],
-    [{id: 3,truck:"X",count:0}, {id: 7,truck:"X"}],
+    [{id: 1, truck:"X", count:0, shut:false}, {id: 5,truck:"X"}],
+    [{id: 2,truck:"X",count:0, shut:false}, {id: 6,truck:"X"}],
+    [{id: 3,truck:"X",count:0, shut:false}, {id: 7,truck:"X"}],
     [false, {id: 8, truck:"X"}]
 ];
 
