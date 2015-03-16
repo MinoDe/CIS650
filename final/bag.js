@@ -173,18 +173,24 @@ app.post('/result', function(req, res) {
 	if (temp_ip==pi_sensors[0]) {
 		var val =post_data.value;
 		s_val[0]=val;
+		if(val <= 15)
+			bay_blocked[1] = true;
 		//console.log('val ' + val + ' posted to s_val[0]');
 		res.end();
 	}
 	else if (temp_ip==pi_sensors[1]) {
 		var val =post_data.value;
 		s_val[1]=val;
+		if(val <= 15)
+			bay_blocked[2] = true;
 		//console.log('val ' + val + ' posted to s_val[1]');
 		res.end();
 	}
 	else if (temp_ip==pi_sensors[2]) {
 		var val =post_data.value;
 		s_val[2]=val;
+		if(val <= 15)
+			bay_blocked[3] = true;
 		//console.log('val ' + val + ' posted to s_val[2]');
 		res.end();
 	}
